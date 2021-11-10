@@ -4,7 +4,7 @@ mkdir ./data
 mkdir ./logs
 
 # download page images
-wget https://obj.umiacs.umd.edu/comics/raw_page_images.tar.gz
+# wget https://obj.umiacs.umd.edu/comics/raw_page_images.tar.gz
 
 # download ocr 
 wget https://obj.umiacs.umd.edu/comics/COMICS_ocr_file.csv -P ./data/

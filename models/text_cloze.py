@@ -11,10 +11,13 @@ def validate(fold_name, fold_data, fold_file, val_batch_size=1024):
     batches = [(x, x + val_batch_size) for x in range(0, len(fold_data[0]), val_batch_size)]
     correct = 0.
     total = 0.
+    errors = []
     for start, end in batches:
         for batch in generate_minibatches_from_megabatch(fold_data, vdict, start, end, 
             difficulty=args.difficulty, max_unk=2, fold_dict=read_fold(fold_file, vdict), 
-            shuffle_candidates=True):
+            shuffle_candidates=False):
+
+            answer_ids = batch[0]
 
             prods = pred_fn(*batch[1:-1])
             labels = np.argmax(batch[-1], axis=-1)
@@ -23,9 +26,13 @@ def validate(fold_name, fold_data, fold_file, val_batch_size=1024):
             for i in range(prods.shape[0]):
                 if max_prods[i] == labels[i]:
                     correct += 1
+                else:
+                    errors.append((answer_ids[i], max_prods[i]))
                 
                 total += 1
-    return 'fold %s: got %d out of %d correct for %f accuracy' % (fold_name, correct, total, correct/total)
+
+    accuracy = correct / total
+    return 'fold %s: got %d out of %d correct for %f accuracy' % (fold_name, correct, total, correct/total), accuracy, errors
 
 
 '''NETWORK ASSEMBLY'''
@@ -205,7 +212,7 @@ if __name__ == '__main__':
     print 'loading data...'
     vdict, rvdict = cPickle.load(open(args.vocab, 'rb'))
     comics_data = h5.File(args.data, 'r')
-    all_vggs = h5.File(args.vgg_feats)
+    all_vggs = h5.File(args.vgg_feats, 'r')
     train_data = load_hdf5(comics_data['train'], all_vggs['train'])
     dev_data = load_hdf5(comics_data['dev'], all_vggs['dev'])
     test_data = load_hdf5(comics_data['test'], all_vggs['test'])
@@ -236,6 +243,8 @@ if __name__ == '__main__':
     # generate train minibatches
     train_batches = [(x, x + args.megabatch_size) for x in range(0, total_pages, args.megabatch_size)]
 
+    best_dev_acc = 0
+
     print 'training...'
     for epoch in range(args.n_epochs):
         epoch_loss = 0.
@@ -253,11 +262,16 @@ if __name__ == '__main__':
         log.write(epoch_log + '\n')
         print epoch_log
 
-        dev_val = validate('dev', dev_data, dev_fold)
-        test_val = validate('test', test_data, test_fold)
+        dev_msg, dev_acc, dev_errors = validate('dev', dev_data, dev_fold)
+        test_msg, test_acc, test_errors = validate('test', test_data, test_fold)
 
-        log.write(dev_val + '\n')
-        log.write(test_val + '\n\n')
-        print dev_val
-        print test_val
+        log.write(dev_msg + '\n')
+        log.write(test_msg + '\n\n')
+        print dev_msg
+        print test_msg
         log.flush()
+
+        if dev_acc > best_dev_acc:
+            best_dev_acc = dev_acc
+            pickle.dump(test_errors,
+                open('test_preds.pkl', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)

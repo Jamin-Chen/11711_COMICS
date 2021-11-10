@@ -207,11 +207,12 @@ class Create_hdf5:
                 x2 = row['x2']
                 y2 = row['y2']
                 
+                raw_text = text
                 text = text.split()
                 for w in text:
                     self.vcount[w] += 1
                 self.ocr_dict[(int(comic_no), int(page_no), int(panel_no))].append( 
-                        [textbox_no, dialog_or_narration, text, x1, y1, x2, y2])
+                        [textbox_no, dialog_or_narration, text, x1, y1, x2, y2, raw_text])
 
         if save == 'Yes':
             pickle.dump(self.ocr_dict, open('ocr_dict.p', 'w'),
@@ -296,6 +297,9 @@ class Create_hdf5:
             h_words = f.create_dataset(fold+'/words',
                     shape=(d[fold]['n'], self.max_panels, self.max_boxes, self.max_words),
                     dtype=np.uint32)
+            h_raw_text = f.create_dataset(fold+'/raw_text',
+                    shape=(d[fold]['n'], self.max_panels, self.max_boxes),
+                    dtype=h5.string_dtype())
             h_wmask = f.create_dataset(fold+'/word_mask',
                     shape=(d[fold]['n'], self.max_panels, self.max_boxes, self.max_words),
                     dtype=np.uint8)
@@ -346,11 +350,10 @@ class Create_hdf5:
                     for j, textbox in enumerate(panel_contents):
                         # ocr_key = '%d_%d_%d_%d' % (comic_no, page_no, panel_no, j)
                         # if ocr_key in self.ocr_dict:
-                            # textbox contains : [dialog_or_narration, text, x1, y1, x2, y2])
                             words = textbox[2]
                             if len(words) > 0:
                                 dialog_or_narration = int(textbox[1])
-                                x1, y1, x2, y2 = map(float, textbox[-4:])
+                                x1, y1, x2, y2 = map(float, textbox[3:7])
                                 new_coords = self.scale_textbox_coords(w_, h_, [x1, y1, x2, y2]) 
                                 new_coords_blk_list[tcount] = new_coords
                                 h_coords[curr_page_idx, panel_no, tcount] = new_coords
@@ -361,6 +364,8 @@ class Create_hdf5:
                                 inds = [self.vdict[w] if w in self.vdict else self.vdict['UNK'] for w in words ][:self.max_words]
                                 h_words[curr_page_idx, panel_no, tcount, :len(inds)] = inds
                                 h_wmask[curr_page_idx, panel_no, tcount, :len(inds)] = 1
+
+                                h_raw_text[curr_page_idx, panel_no, tcount] = textbox[7]
 
                                 if tcount == self.max_boxes-1:
                                     # limit the number of textboes per panel
@@ -418,7 +423,7 @@ def main():
     max_panels = 9
     max_boxes = 3
     max_words = 30
-    max_vocab_size = 20000
+    max_vocab_size = 30000
     c = Create_hdf5(panels_path, ocr_file, ad_path, dims,
             max_panels, max_boxes, max_words, max_vocab_size, h5path) 
 
@@ -429,3 +434,4 @@ if __name__ == '__main__':
     main()
     # preview('comics.h5', '/data/raw_page_images/',
     #   'comics_vocab.p', fold='dev')
+

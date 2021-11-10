@@ -201,7 +201,7 @@ if __name__ == '__main__':
     print 'loading data...'
     vdict, rvdict = cPickle.load(open(args.vocab, 'rb'))
     comics_data = h5.File(args.data, 'r')
-    all_vggs = h5.File(args.vgg_feats)
+    all_vggs = h5.File(args.vgg_feats, 'r')
     train_data = load_hdf5(comics_data['train'], all_vggs['train'])
     dev_data = load_hdf5(comics_data['dev'], all_vggs['dev'])
     test_data = load_hdf5(comics_data['test'], all_vggs['test'])

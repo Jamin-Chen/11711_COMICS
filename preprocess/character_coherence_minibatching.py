@@ -197,8 +197,8 @@ def generate_minibatches_from_megabatch(data, vdict, mb_start, mb_end, batch_siz
             answer_bmask.append(curr_bmask[i, j+context_size][:2])
 
             # if cached fold, just use the stored candidates
-            if fold_dict:
-                key = '_'.join([str(z) for z in key])
+            key = '_'.join([str(z) for z in key])
+            if fold_dict and key in fold_dict:
                 candidates.append(fold_dict[key])
 
             else:
